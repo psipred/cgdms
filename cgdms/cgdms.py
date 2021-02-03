@@ -66,6 +66,9 @@ centroid_dists = {
     "S": 1.9425, "T": 1.9425, "W": 3.9025, "Y": 3.7975, "V": 1.9775,
 }
 
+train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))]
+val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))]
+
 def get_bin_centres(min_dist, max_dist):
     gap_dist = (max_dist - min_dist) / n_bins_pot
     bcs_pot = [min_dist + i * gap_dist + 0.5 * gap_dist for i in range(n_bins_pot)]
@@ -190,23 +193,18 @@ def read_input_file_threaded(fp, seq, device="cpu"):
 
 # Read a dataset of input files
 class ProteinDataset(Dataset):
-    def __init__(self, pdbids, coord_dir):
+    def __init__(self, pdbids, coord_dir, device="cpu"):
         self.pdbids = pdbids
         self.coord_dir = coord_dir
         self.set_size = len(pdbids)
+        self.device = device
 
     def __len__(self):
         return self.set_size
 
     def __getitem__(self, index):
         fp = os.path.join(self.coord_dir, self.pdbids[index] + ".txt")
-        return read_input_file(fp)
-
-train_list = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))]
-train_set = ProteinDataset(train_list, coord_dir)
-
-val_list = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"))]
-val_set = ProteinDataset(val_list, coord_dir)
+        return read_input_file(fp, device=self.device)
 
 # Differentiable molecular simulation of proteins with a coarse-grained potential
 class Simulator(torch.nn.Module):
@@ -592,6 +590,9 @@ def train(model_filepath, device="cpu", verbosity=0):
         torch.zeros(len(angles), n_aas, n_bins_pot, device=device),
         torch.zeros(len(dihedrals), n_aas * len(ss_types), n_bins_pot + 2, device=device)
     )
+
+    train_set = ProteinDataset(train_proteins, coord_dir, device=device)
+    val_set   = ProteinDataset(val_proteins  , coord_dir, device=device)
 
     optimizer = torch.optim.Adam(simulator.parameters(), lr=learning_rate)
 
