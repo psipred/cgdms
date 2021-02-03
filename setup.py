@@ -20,7 +20,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     license="MIT",
-    keywords="protein potential force field coarse-grained automatic differentiation",
+    keywords="protein potential force-field coarse-grained automatic-differentiation",
     scripts=["bin/cgdms"],
     install_requires=["numpy", "biopython", "PeptideBuilder"],
 )

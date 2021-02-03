@@ -11,7 +11,7 @@ The software is OS-independent.
 2. Install [PyTorch](https://pytorch.org) 1.6 or later as appropriate for your system.
 A GPU is not essential but is highly recommended as simulations are much slower on the CPU.
 3. Run `pip install cgdms`, which will also install [NumPy](https://numpy.org), [Biopython](https://biopython.org) and [PeptideBuilder](https://github.com/clauswilke/PeptideBuilder) if they are not already present.
-The package takes up about x MB of disk space.
+The package takes up about 75 MB of disk space.
 
 ## Usage
 
@@ -104,6 +104,9 @@ Train the system.
 cgdms train
 ```
 ```
+Epoch    1 - med train/val RMSD  0.863 /  0.860 over  250 steps
+Epoch    2 - med train/val RMSD  0.859 /  0.860 over  250 steps
+Epoch    3 - med train/val RMSD  0.856 /  0.854 over  250 steps
 ...
 ```
 
@@ -130,6 +133,7 @@ See `cgdms.interactions` for the interactions described by each potential, which
 
 ## Notes
 
-Memory...
+Running a simulation takes x of GPU memory.
+Training a model takes up to 32 GB of GPU memory.
 
 Other software related to differentiable molecular simulation includes [Jax MD](https://github.com/google/jax-md), [TorchMD](https://github.com/torchmd), [DeePMD-kit](https://github.com/deepmodeling/deepmd-kit), [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack), [DiffTaichi](https://github.com/yuanming-hu/difftaichi), [Time Machine](https://github.com/proteneer/timemachine) and [Molly](https://github.com/JuliaMolSim/Molly.jl).
