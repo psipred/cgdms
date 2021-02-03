@@ -489,7 +489,7 @@ def rmsd(c1, c2):
 # Generate starting coordinates
 # conformation is extended/predss/random/helix
 def starting_coords(seq, conformation="extended", input_file="", device="cpu"):
-    from PeptideBuilder import PeptideBuilder
+    import PeptideBuilder
 
     coords = torch.zeros(len(seq) * len(atoms), 3, device=device)
     backbone_atoms = ("N", "CA", "C", "O")
