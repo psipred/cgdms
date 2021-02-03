@@ -104,6 +104,7 @@ Train the system.
 cgdms train
 ```
 ```
+Starting training
 Epoch    1 - med train/val RMSD  0.863 /  0.860 over  250 steps
 Epoch    2 - med train/val RMSD  0.859 /  0.860 over  250 steps
 Epoch    3 - med train/val RMSD  0.856 /  0.854 over  250 steps
@@ -115,6 +116,8 @@ Epoch    3 - med train/val RMSD  0.856 /  0.854 over  250 steps
 Training takes about 2 months on a decent GPU and is unlikely something you want to do.
 
 ### Exploring potentials
+
+The learned potential and information on the interactions can be found in the Python package:
 
 ```python
 import torch
@@ -135,5 +138,9 @@ See `cgdms.interactions` for the interactions described by each potential, which
 
 Running a simulation takes x of GPU memory.
 Training a model takes up to 32 GB of GPU memory.
+
+The code in this package is set up to run specific coarse-grained simulations of proteins.
+However, the package contains code that could be useful to others wishing to carry out general differentiable simulations with PyTorch.
+This includes integrators not used in the paper and not thoroughly tested (velocity-free Verlet, two Langevin implementations), the Andersen thermostat, RMSD with the Kabsch algorithm, and code to apply forces to atoms from bond angle and dihedral angle potentials.
 
 Other software related to differentiable molecular simulation includes [Jax MD](https://github.com/google/jax-md), [TorchMD](https://github.com/torchmd), [DeePMD-kit](https://github.com/deepmodeling/deepmd-kit), [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack), [DiffTaichi](https://github.com/yuanming-hu/difftaichi), [Time Machine](https://github.com/proteneer/timemachine) and [Molly](https://github.com/JuliaMolSim/Molly.jl).
