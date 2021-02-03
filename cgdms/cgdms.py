@@ -109,7 +109,7 @@ def report(msg, msg_verbosity=0, verbosity=2):
 
 # Read an input data file
 # The protein sequence is read from the file but will overrule the file if provided
-def read_input_file(fp, seq="", device="cuda"):
+def read_input_file(fp, seq="", device="cpu"):
     with open(fp) as f:
         lines = f.readlines()
         if seq == "":
@@ -176,7 +176,7 @@ def read_input_file(fp, seq="", device="cuda"):
     return native_coords, inters_flat, inters_ang, inters_dih, masses, seq
 
 # Read an input data file and thread a new sequence onto it
-def read_input_file_threaded(fp, seq, device="cuda"):
+def read_input_file_threaded(fp, seq, device="cpu"):
     coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(fp, seq, device=device)
 
     # Move centroids out to minimum distances for that sequence
@@ -490,7 +490,7 @@ def rmsd(c1, c2):
 
 # Generate starting coordinates
 # conformation is extended/predss/random/helix
-def starting_coords(seq, conformation="extended", input_file="", device="cuda"):
+def starting_coords(seq, conformation="extended", input_file="", device="cpu"):
     from PeptideBuilder import PeptideBuilder
 
     coords = torch.zeros(len(seq) * len(atoms), 3, device=device)
@@ -582,7 +582,7 @@ def print_input_file(structure_file, ss2_file=None):
     for coord_n, coord_ca, coord_c, coord_cent in coords:
         print(f"{coord_str(coord_n)} {coord_str(coord_ca)} {coord_str(coord_c)} {coord_str(coord_cent)}")
 
-def train(model_filepath, device="cuda", verbosity=0):
+def train(model_filepath, device="cpu", verbosity=0):
     max_n_steps = 2_000
     learning_rate = 1e-4
     n_accumulate = 100

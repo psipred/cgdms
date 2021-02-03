@@ -43,7 +43,7 @@ parser_simulate.add_argument("-p", "--parameters", required=False,
 parser_simulate.add_argument("-d", "--device", required=False,
     help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_simulate.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=2,
-    help="logging verbosity")
+    help="logging verbosity, default 2")
 
 parser_score = subparsers.add_parser("score",
     description="Calculate the energy of a structure in the learned potential.",
@@ -56,7 +56,7 @@ parser_score.add_argument("-p", "--parameters", required=False,
 parser_score.add_argument("-d", "--device", required=False,
     help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_score.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
-    help="logging verbosity")
+    help="logging verbosity, default 0")
 
 parser_thread = subparsers.add_parser("thread",
     description=("Calculate the energy in the learned potential of a set of sequences threaded "
@@ -72,7 +72,7 @@ parser_thread.add_argument("-p", "--parameters", required=False,
 parser_thread.add_argument("-d", "--device", required=False,
     help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_thread.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
-    help="logging verbosity")
+    help="logging verbosity, default 0")
 
 parser_train = subparsers.add_parser("train",
     description="Train the model. This can take a couple of months... go and get a coffee?",
@@ -82,7 +82,7 @@ parser_train.add_argument("-o", "--output", default="cgdms_params.pt",
 parser_train.add_argument("-d", "--device", required=False,
     help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_train.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
-    help="logging verbosity")
+    help="logging verbosity, default 0")
 
 args = parser.parse_args()
 
