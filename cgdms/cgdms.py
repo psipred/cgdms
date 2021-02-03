@@ -12,8 +12,6 @@ from math import pi
 import os
 from random import gauss, random, shuffle
 
-dev = "cuda" if torch.cuda.is_available() else "cpu"
-
 cgdms_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 dataset_dir = os.path.join(cgdms_dir, "datasets")
 coord_dir = os.path.join(cgdms_dir, "protein_data")
@@ -96,14 +94,13 @@ for i, aa_1 in enumerate(aas):
                     dist_bin_centres.append(get_bin_centres(0.7, 14.7))
 interactions.append("self_placeholder") # This gets zeroed out during the simulation
 dist_bin_centres.append([0.0] * n_bins_force)
-dist_bin_centres = torch.tensor(dist_bin_centres, device=dev)
 
 gap_ang = (pi - pi / 3) / n_bins_pot
-angle_bin_centres = torch.tensor([pi / 3 + i * gap_ang + 0.5 * gap_ang for i in range(n_bins_pot)][1:-1], device=dev)
+angle_bin_centres = [pi / 3 + i * gap_ang + 0.5 * gap_ang for i in range(n_bins_pot)][1:-1]
 
 gap_dih = (2 * pi) / n_bins_pot
 # Two invisible bins on the end imitate periodicity
-dih_bin_centres = torch.tensor([-pi + i * gap_dih - 0.5 * gap_dih for i in range(n_bins_pot + 2)][1:-1], device=dev)
+dih_bin_centres = [-pi + i * gap_dih - 0.5 * gap_dih for i in range(n_bins_pot + 2)][1:-1]
 
 # Report a message if it exceeds the verbosity level
 def report(msg, msg_verbosity=0, verbosity=2):
@@ -112,7 +109,7 @@ def report(msg, msg_verbosity=0, verbosity=2):
 
 # Read an input data file
 # The protein sequence is read from the file but will overrule the file if provided
-def read_input_file(fp, seq=""):
+def read_input_file(fp, seq="", device="cuda"):
     with open(fp) as f:
         lines = f.readlines()
         if seq == "":
@@ -125,9 +122,9 @@ def read_input_file(fp, seq=""):
             seq_info.append((i, atom))
     n_atoms = len(seq_info)
     native_coords = torch.tensor(np.loadtxt(fp, skiprows=2), dtype=torch.float,
-                                    device=dev).view(n_atoms, 3)
+                                    device=device).view(n_atoms, 3)
 
-    inters = torch.ones(n_atoms, n_atoms, dtype=torch.long, device=dev) * -1
+    inters = torch.ones(n_atoms, n_atoms, dtype=torch.long, device=device) * -1
     for i in range(n_atoms):
         inters[i, i] = len(interactions) - 1 # Placeholder for same atom
         for j in range(i):
@@ -137,7 +134,8 @@ def read_input_file(fp, seq=""):
                 info_1, info_2 = seq_info[j], seq_info[i]
             else:
                 # Sort by amino acid index then by atom
-                info_1, info_2 = sorted([seq_info[i], seq_info[j]], key=lambda x : (aas.index(seq[x[0]]), atoms.index(x[1])))
+                info_1, info_2 = sorted([seq_info[i], seq_info[j]],
+                                        key=lambda x : (aas.index(seq[x[0]]), atoms.index(x[1])))
             inter = f"{seq[info_1[0]]}_{info_1[1]}_{seq[info_2[0]]}_{info_2[1]}"
             if res_sep == 0:
                 inter += "_same"
@@ -166,20 +164,20 @@ def read_input_file(fp, seq=""):
         masses.append(mass_CA)
         masses.append(mass_C)
         masses.append(mass_cent)
-    masses = torch.tensor(masses, device=dev)
+    masses = torch.tensor(masses, device=device)
 
     # Different angle potentials for each residue
-    inters_ang = torch.tensor([aas.index(r) for r in seq], dtype=torch.long, device=dev)
+    inters_ang = torch.tensor([aas.index(r) for r in seq], dtype=torch.long, device=device)
 
     # Different dihedral potentials for each residue and predicted secondary structure type
     inters_dih = torch.tensor([aas.index(r) * len(ss_types) + ss_types.index(s) for r, s in zip(seq, ss_pred)],
-                                dtype=torch.long, device=dev)
+                                dtype=torch.long, device=device)
 
     return native_coords, inters_flat, inters_ang, inters_dih, masses, seq
 
 # Read an input data file and thread a new sequence onto it
-def read_input_file_threaded(fp, seq):
-    coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(fp, seq)
+def read_input_file_threaded(fp, seq, device="cuda"):
+    coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(fp, seq, device=device)
 
     # Move centroids out to minimum distances for that sequence
     ind_ca, ind_cent = atoms.index("CA"), atoms.index("cent")
@@ -239,22 +237,26 @@ class Simulator(torch.nn.Module):
         ):
 
         assert integrator in ("vel", "no_vel", "min", "langevin", "langevin_simple"), f"Invalid integrator {integrator}"
+        device = coords.device
         batch_size, n_atoms = masses.size(0), masses.size(1)
         n_res = n_atoms // len(atoms)
-        pair_centres_flat = dist_bin_centres.index_select(0, inters_flat[0]).unsqueeze(0).expand(batch_size, -1, -1)
+        dist_bin_centres_tensor = torch.tensor(dist_bin_centres, device=device)
+        pair_centres_flat = dist_bin_centres_tensor.index_select(0, inters_flat[0]).unsqueeze(0).expand(batch_size, -1, -1)
         pair_pots_flat = self.ff_distances.index_select(0, inters_flat[0]).unsqueeze(0).expand(batch_size, -1, -1)
-        angle_centres_flat = angle_bin_centres.unsqueeze(0).unsqueeze(0).expand(batch_size, n_res, -1)
+        angle_bin_centres_tensor = torch.tensor(angle_bin_centres, device=device)
+        angle_centres_flat = angle_bin_centres_tensor.unsqueeze(0).unsqueeze(0).expand(batch_size, n_res, -1)
         angle_pots_flat = self.ff_angles.index_select(1, inters_ang[0]).unsqueeze(0).expand(batch_size, -1, -1, -1)
-        dih_centres_flat = dih_bin_centres.unsqueeze(0).unsqueeze(0).expand(batch_size, n_res - 1, -1)
+        dih_bin_centres_tensor = torch.tensor(dih_bin_centres, device=device)
+        dih_centres_flat = dih_bin_centres_tensor.unsqueeze(0).unsqueeze(0).expand(batch_size, n_res - 1, -1)
         dih_pots_flat = self.ff_dihedrals.index_select(1, inters_dih[0]).unsqueeze(0).expand(batch_size, -1, -1, -1)
         native_coords_ca = native_coords.view(batch_size, n_res, 3 * len(atoms))[0, :, 3:6]
         model_n = 0
 
         if integrator == "vel" or integrator == "langevin" or integrator == "langevin_simple":
-            vels = torch.randn(coords.shape, device=dev) * start_temperature
-            accs_last = torch.zeros(coords.shape, device=dev)
+            vels = torch.randn(coords.shape, device=device) * start_temperature
+            accs_last = torch.zeros(coords.shape, device=device)
         elif integrator == "no_vel":
-            coords_last = coords.clone() + torch.randn(coords.shape, device=dev) * start_temperature * timestep
+            coords_last = coords.clone() + torch.randn(coords.shape, device=device) * start_temperature * timestep
 
         # The step the energy is return on is not used for simulation so we add an extra step
         if energy:
@@ -266,7 +268,7 @@ class Simulator(torch.nn.Module):
             elif integrator == "langevin":
                 # From Gronbech-Jensen 2013
                 alpha, twokbT = thermostat_const, temperature
-                beta = np.sqrt(twokbT * alpha * timestep) * torch.randn(vels.shape, device=dev)
+                beta = np.sqrt(twokbT * alpha * timestep) * torch.randn(vels.shape, device=device)
                 b = 1.0 / (1.0 + (alpha * timestep) / (2 * masses.unsqueeze(2)))
                 coords_last = coords
                 coords = coords + b * timestep * vels + 0.5 * b * (timestep ** 2) * accs_last + 0.5 * b * timestep * beta / masses.unsqueeze(2)
@@ -277,9 +279,9 @@ class Simulator(torch.nn.Module):
             printing = verbosity >= 2 and i % report_n == 0
             scoring = energy and i == n_steps - 1
             if printing or scoring:
-                dist_energy = torch.zeros(1, device=dev)
-                angle_energy = torch.zeros(1, device=dev)
-                dih_energy = torch.zeros(1, device=dev)
+                dist_energy = torch.zeros(1, device=device)
+                angle_energy = torch.zeros(1, device=device)
+                dih_energy = torch.zeros(1, device=device)
 
             # Add pairwise distance forces
             crep = coords.unsqueeze(1).expand(-1, n_atoms, -1, -1)
@@ -299,7 +301,7 @@ class Simulator(torch.nn.Module):
                 dist_energy += 0.5 * pair_pots_flat.gather(2, dist_bin_inds + 1).sum()
 
             atom_coords = coords.view(batch_size, n_res, 3 * len(atoms))
-            atom_accs = torch.zeros(batch_size, n_res, 3 * len(atoms), device=dev)
+            atom_accs = torch.zeros(batch_size, n_res, 3 * len(atoms), device=device)
             # Angle forces
             # across_res is the number of atoms in the next residue, starting from atom_3
             for ai, (atom_1, atom_2, atom_3, across_res) in enumerate(angles):
@@ -416,7 +418,7 @@ class Simulator(torch.nn.Module):
                 accs_last = accs
             elif integrator == "langevin_simple":
                 gamma, twokbT = thermostat_const, temperature
-                accs = accs + (-gamma * vels + np.sqrt(gamma * twokbT) * torch.randn(vels.shape, device=dev)) / masses.unsqueeze(2)
+                accs = accs + (-gamma * vels + np.sqrt(gamma * twokbT) * torch.randn(vels.shape, device=device)) / masses.unsqueeze(2)
                 vels = vels + 0.5 * (accs_last + accs) * timestep
                 accs_last = accs
             elif integrator == "min":
@@ -429,10 +431,10 @@ class Simulator(torch.nn.Module):
                     if random() < thermostat_prob:
                         if integrator == "vel":
                             # Actually this should be divided by the mass
-                            new_vel = torch.randn(3, device=dev) * temperature
+                            new_vel = torch.randn(3, device=device) * temperature
                             vels[0, ai] = new_vel
                         elif integrator == "no_vel":
-                            new_diff = torch.randn(3, device=dev) * temperature * timestep
+                            new_diff = torch.randn(3, device=device) * temperature * timestep
                             coords_last[0, ai] = coords[0, ai] - new_diff
 
             if printing:
@@ -464,6 +466,7 @@ class Simulator(torch.nn.Module):
 # RMSD between two sets of coordinates with shape (n_atoms, 3) using the Kabsch algorithm
 # Returns the RMSD and whether convergence was reached
 def rmsd(c1, c2):
+    device = c1.device
     r1 = c1.transpose(0, 1)
     r2 = c2.transpose(0, 1)
     P = r1 - r1.mean(1).view(3, 1)
@@ -473,12 +476,12 @@ def rmsd(c1, c2):
         U, S, V = torch.svd(cov)
     except RuntimeError:
         report("  SVD failed to converge", 0)
-        return torch.tensor([20.0], device=dev), False
+        return torch.tensor([20.0], device=device), False
     d = torch.tensor([
             [1.0, 0.0, 0.0],
             [0.0, 1.0, 0.0],
             [0.0, 0.0, torch.det(torch.matmul(V, U.transpose(0, 1)))]
-    ], device=dev)
+    ], device=device)
     rot = torch.matmul(torch.matmul(V, d), U.transpose(0, 1))
     rot_P = torch.matmul(rot, P)
     diffs = rot_P - Q
@@ -487,10 +490,10 @@ def rmsd(c1, c2):
 
 # Generate starting coordinates
 # conformation is extended/predss/random/helix
-def starting_coords(seq, conformation="extended", input_file=""):
+def starting_coords(seq, conformation="extended", input_file="", device="cuda"):
     from PeptideBuilder import PeptideBuilder
 
-    coords = torch.zeros(len(seq) * len(atoms), 3, device=dev)
+    coords = torch.zeros(len(seq) * len(atoms), 3, device=device)
     backbone_atoms = ("N", "CA", "C", "O")
     ss_phis = {"C": -120.0, "H": -60.0, "E": -120.0}
     ss_psis = {"C":  140.0, "H": -60.0, "E":  140.0}
@@ -521,9 +524,11 @@ def starting_coords(seq, conformation="extended", input_file=""):
         for ai, atom in enumerate(atoms):
             if atom == "cent":
                 coords[len(atoms) * i + ai] = torch.tensor(
-                    [at.coord for at in structure[0]["A"][i + 1] if at.name not in backbone_atoms], dtype=torch.float, device=dev).mean(dim=0)
+                    [at.coord for at in structure[0]["A"][i + 1] if at.name not in backbone_atoms],
+                    dtype=torch.float, device=device).mean(dim=0)
             else:
-                coords[len(atoms) * i + ai] = torch.tensor(structure[0]["A"][i + 1][atom].coord, dtype=torch.float, device=dev)
+                coords[len(atoms) * i + ai] = torch.tensor(structure[0]["A"][i + 1][atom].coord,
+                                                            dtype=torch.float, device=device)
     return coords
 
 # Print a protein data file from a PDB/mmCIF file and an optional PSIPRED ss2 file
@@ -577,15 +582,15 @@ def print_input_file(structure_file, ss2_file=None):
     for coord_n, coord_ca, coord_c, coord_cent in coords:
         print(f"{coord_str(coord_n)} {coord_str(coord_ca)} {coord_str(coord_c)} {coord_str(coord_cent)}")
 
-def train(model_filepath, verbosity=0):
+def train(model_filepath, device="cuda", verbosity=0):
     max_n_steps = 2_000
     learning_rate = 1e-4
     n_accumulate = 100
 
     simulator = Simulator(
-        torch.zeros(len(interactions), n_bins_pot, device=dev),
-        torch.zeros(len(angles), n_aas, n_bins_pot, device=dev),
-        torch.zeros(len(dihedrals), n_aas * len(ss_types), n_bins_pot + 2, device=dev)
+        torch.zeros(len(interactions), n_bins_pot, device=device),
+        torch.zeros(len(angles), n_aas, n_bins_pot, device=device),
+        torch.zeros(len(dihedrals), n_aas * len(ss_types), n_bins_pot + 2, device=device)
     )
 
     optimizer = torch.optim.Adam(simulator.parameters(), lr=learning_rate)

@@ -40,6 +40,8 @@ parser_simulate.add_argument("-r", "--report", type=int, default=10_000,
     help="interval for printing energy and writing PDB file, default 10_000")
 parser_simulate.add_argument("-p", "--parameters", required=False,
     help="parameter set to use, default is the trained model")
+parser_simulate.add_argument("-d", "--device", required=False,
+    help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_simulate.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=2,
     help="logging verbosity")
 
@@ -47,10 +49,12 @@ parser_score = subparsers.add_parser("score",
     description="Calculate the energy of a structure in the learned potential.",
     help="calculate the energy of a structure in the learned potential")
 parser_score.add_argument("-i", "--input", help="input protein data file")
-parser_score.add_argument("-m", "--minsteps", type=float, default=0.0, 
+parser_score.add_argument("-m", "--minsteps", type=float, default=0.0,
     help="number of minimisation steps to run, default 0")
 parser_score.add_argument("-p", "--parameters", required=False,
     help="parameter set to use, default is the trained model")
+parser_score.add_argument("-d", "--device", required=False,
+    help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_score.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
     help="logging verbosity")
 
@@ -61,10 +65,12 @@ parser_thread = subparsers.add_parser("thread",
             "structure"))
 parser_thread.add_argument("-i", "--input", help="input protein data file")
 parser_thread.add_argument("-s", "--sequences", help="file of sequences to thread, one per line")
-parser_thread.add_argument("-m", "--minsteps", type=float, default=100.0, 
+parser_thread.add_argument("-m", "--minsteps", type=float, default=100.0,
     help="number of minimisation steps to run for each sequence, default 100")
 parser_thread.add_argument("-p", "--parameters", required=False,
     help="parameter set to use, default is the trained model")
+parser_thread.add_argument("-d", "--device", required=False,
+    help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_thread.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
     help="logging verbosity")
 
@@ -73,6 +79,8 @@ parser_train = subparsers.add_parser("train",
     help="train the model")
 parser_train.add_argument("-o", "--output", default="cgdms_params.pt",
     help="output learned parameter filepath, default \"cgdms_params.pt\"")
+parser_train.add_argument("-d", "--device", required=False,
+    help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
 parser_train.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
     help="logging verbosity")
 
@@ -86,22 +94,29 @@ for arg in ("nsteps", "temperature", "coupling", "starttemperature",
 # Imported after argument parsing because it takes a few seconds
 from cgdms import *
 
+if "device" in args.__dict__ and args.device is None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+else:
+    device = args.device
+
 if args.mode == "makeinput":
     print_input_file(args.input, args.ss2)
 elif args.mode == "simulate":
     if args.output and os.path.exists(args.output):
         os.remove(args.output)
     if args.parameters:
-        params = torch.load(args.parameters, map_location=dev)
+        params = torch.load(args.parameters, map_location=device)
     else:
-        params = torch.load(trained_model_file, map_location=dev)
-    native_coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(args.input)
+        params = torch.load(trained_model_file, map_location=device)
+    native_coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(args.input,
+                                                                                    device=device)
     with torch.no_grad():
         simulator = Simulator(params["distances"], params["angles"], params["dihedrals"])
         if args.startconf == "native":
             coords = native_coords
         else:
-            coords = starting_coords(seq, conformation=args.startconf, input_file=args.input)
+            coords = starting_coords(seq, conformation=args.startconf, input_file=args.input,
+                                        device=device)
         coords = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0), inters_ang.unsqueeze(0),
                             inters_dih.unsqueeze(0), masses.unsqueeze(0), seq,
                             native_coords.unsqueeze(0), int(args.nsteps), integrator="vel",
@@ -111,10 +126,11 @@ elif args.mode == "simulate":
                             verbosity=args.verbosity)
 elif args.mode == "score":
     if args.parameters:
-        params = torch.load(args.parameters, map_location=dev)
+        params = torch.load(args.parameters, map_location=device)
     else:
-        params = torch.load(trained_model_file, map_location=dev)
-    coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(args.input)
+        params = torch.load(trained_model_file, map_location=device)
+    coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file(args.input,
+                                                                                device=device)
     with torch.no_grad():
         simulator = Simulator(params["distances"], params["angles"], params["dihedrals"])
         energy = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0), inters_ang.unsqueeze(0),
@@ -124,16 +140,16 @@ elif args.mode == "score":
         print(round(energy.item(), 3))
 elif args.mode == "thread":
     if args.parameters:
-        params = torch.load(args.parameters, map_location=dev)
+        params = torch.load(args.parameters, map_location=device)
     else:
-        params = torch.load(trained_model_file, map_location=dev)
+        params = torch.load(trained_model_file, map_location=device)
     with torch.no_grad():
         simulator = Simulator(params["distances"], params["angles"], params["dihedrals"])
         with open(args.sequences) as f:
             for li, line in enumerate(f):
                 if not line.startswith(">"):
                     coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file_threaded(
-                                                                        args.input, line.rstrip())
+                                                        args.input, line.rstrip(), device=device)
                     energy = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
                                         inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
                                         masses.unsqueeze(0), seq, coords.unsqueeze(0),
@@ -141,4 +157,4 @@ elif args.mode == "thread":
                                         verbosity=args.verbosity)
                     print(li + 1, round(energy.item(), 3))
 elif args.mode == "train":
-    train(args.output, verbosity=args.verbosity)
+    train(args.output, device=device, verbosity=args.verbosity)

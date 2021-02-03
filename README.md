@@ -19,7 +19,7 @@ On Unix systems the executable `cgdms` will be added to the path during installa
 On Windows you can call the `bin/cgdms` script with `python` if you can't access the executable.
 
 Run `cgdms -h` to see the help text and `cgdms {mode} -h` to see the help text for each mode.
-The modes are described below but there are other options outlined in the help text, such as running with a custom parameter set or changing the logging verbosity.
+The modes are described below but there are other options outlined in the help text such as specifying the device to run on, running with a custom parameter set or changing the logging verbosity.
 
 ### Generating protein data files
 
