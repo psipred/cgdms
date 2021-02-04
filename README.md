@@ -85,7 +85,7 @@ It takes ~36 hours on a GPU to run a simulation of this length, or ~10 ms per ti
 Score a protein structure in the learned potential:
 
 ```bash
-cgdms -i 1CRN.txt
+cgdms score -i 1CRN.txt
 ```
 ```
 -136.122
@@ -156,7 +156,7 @@ See `cgdms.interactions` for the interaction described by each potential, which 
 ## Notes
 
 Running a simulation takes less than 1 GB of GPU memory.
-Training a model takes up to 32 GB of GPU memory once the number of steps is fully scaled up.
+Training a model takes up to 32 GB of GPU memory once the number of steps is fully scaled up to 2,000.
 
 The code in this package is set up to run specific coarse-grained simulations of proteins.
 However, the package contains code that could be useful to others wishing to carry out general differentiable simulations with PyTorch.

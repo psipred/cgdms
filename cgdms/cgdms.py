@@ -275,8 +275,8 @@ class Simulator(torch.nn.Module):
 
             # See https://arxiv.org/pdf/1401.1181.pdf for derivation of forces
             printing = verbosity >= 2 and i % report_n == 0
-            scoring = energy and i == n_steps - 1
-            if printing or scoring:
+            returning_energy = energy and i == n_steps - 1
+            if printing or returning_energy:
                 dist_energy = torch.zeros(1, device=device)
                 angle_energy = torch.zeros(1, device=device)
                 dih_energy = torch.zeros(1, device=device)
@@ -295,7 +295,7 @@ class Simulator(torch.nn.Module):
             norm_diffs = diffs / dists.clamp(min=0.01).unsqueeze(3)
             pair_accs = (pair_forces_flat.view(batch_size, n_atoms, n_atoms)).unsqueeze(3) * norm_diffs
             accs = pair_accs.sum(dim=1) / masses.unsqueeze(2)
-            if printing or scoring:
+            if printing or returning_energy:
                 dist_energy += 0.5 * pair_pots_flat.gather(2, dist_bin_inds + 1).sum()
 
             atom_coords = coords.view(batch_size, n_res, 3 * len(atoms))
@@ -340,7 +340,7 @@ class Simulator(torch.nn.Module):
                     atom_accs[:, :-1, (ai_1 * 3):(ai_1 * 3 + 3)] += fa
                     atom_accs[:, 1: , (ai_2 * 3):(ai_2 * 3 + 3)] += fb
                     atom_accs[:, 1: , (ai_3 * 3):(ai_3 * 3 + 3)] += fc
-                if printing or scoring:
+                if printing or returning_energy:
                     angle_energy += angle_pots_to_use.gather(2, angle_bin_inds + 1).sum()
 
             # Dihedral forces
@@ -394,13 +394,13 @@ class Simulator(torch.nn.Module):
                     atom_accs[:, 1: , (ai_2 * 3):(ai_2 * 3 + 3)] += fb
                     atom_accs[:, 1: , (ai_3 * 3):(ai_3 * 3 + 3)] += fc
                     atom_accs[:, 1: , (ai_4 * 3):(ai_4 * 3 + 3)] += fd
-                if printing or scoring:
+                if printing or returning_energy:
                     dih_energy += dih_pots_to_use.gather(2, dih_bin_inds + 1).sum()
 
             accs += atom_accs.view(batch_size, n_atoms, 3) / masses.unsqueeze(2)
 
             # Shortcut to return energy at a given step
-            if scoring:
+            if returning_energy:
                 return dist_energy + angle_energy + dih_energy
 
             if integrator == "vel":
@@ -598,6 +598,7 @@ def train(model_filepath, device="cpu", verbosity=0):
 
     report("Starting training", 0, verbosity)
     for ei in count(start=0, step=1):
+        # After 37 epochs reset the optimiser with a lower learning rate
         if ei == 37:
             optimizer = torch.optim.Adam(simulator.parameters(), lr=learning_rate / 2)
 
