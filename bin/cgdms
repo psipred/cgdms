@@ -94,10 +94,11 @@ for arg in ("nsteps", "temperature", "coupling", "starttemperature",
 # Imported after argument parsing because it takes a few seconds
 from cgdms import *
 
-if "device" in args.__dict__ and args.device is None:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-else:
-    device = args.device
+if "device" in args.__dict__:
+    if args.device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        device = args.device
 
 if args.mode == "makeinput":
     print_input_file(args.input, args.ss2)
