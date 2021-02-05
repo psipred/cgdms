@@ -85,7 +85,7 @@ It takes ~36 hours on a GPU to run a simulation of this length, or ~10 ms per ti
 Calculate the energy of a protein structure in the learned potential:
 
 ```bash
-cgdms score -i 1CRN.txt
+cgdms energy -i 1CRN.txt
 ```
 ```
 -136.122
