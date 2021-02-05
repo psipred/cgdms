@@ -23,4 +23,5 @@ setuptools.setup(
     keywords="protein potential force-field coarse-grained automatic-differentiation",
     scripts=["bin/cgdms"],
     install_requires=["numpy", "biopython", "PeptideBuilder"],
+    include_package_data=True,
 )

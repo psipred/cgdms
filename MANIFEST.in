@@ -1,0 +1,4 @@
+cgdms/cgdms_params_ep45.pt
+protein_data/results/*
+protein_data/train_val/*
+datasets/*
