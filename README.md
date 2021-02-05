@@ -27,7 +27,7 @@ The modes are described below but there are other options outlined in the help t
 ### Generating protein data files
 
 To simulate or calculate the energy of proteins you need to generate files of a certain format.
-If you want to use the proteins presented in the paper, the data files are [here](protein_data/results).
+If you want to use the proteins presented in the paper, the data files are [here](cgdms/protein_data/results).
 Otherwise you will need to generate these files:
 
 ```bash
@@ -158,7 +158,7 @@ See `cgdms.interactions` for the interaction described by each potential, which 
 Running a simulation takes less than 1 GB of GPU memory for any number of steps.
 Training a model takes up to 32 GB of GPU memory once the number of steps is fully scaled up to 2,000.
 
-The lists of training and validation PDB chains are available [here](datasets) and the protein data files [here](protein_data/train_val).
+The lists of training and validation PDB chains are available [here](cgdms/datasets) and the protein data files [here](cgdms/protein_data/train_val).
 
 The code in this package is set up to run specific coarse-grained simulations of proteins.
 However, the package contains code that could be useful to others wishing to carry out general differentiable simulations with PyTorch.

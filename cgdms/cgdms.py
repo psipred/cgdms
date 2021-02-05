@@ -12,10 +12,10 @@ from math import pi
 import os
 from random import gauss, random, shuffle
 
-cgdms_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+cgdms_dir = os.path.dirname(os.path.realpath(__file__))
 dataset_dir = os.path.join(cgdms_dir, "datasets")
 train_val_dir = os.path.join(cgdms_dir, "protein_data", "train_val")
-trained_model_file = os.path.join(cgdms_dir, "cgdms", "cgdms_params_ep45.pt")
+trained_model_file = os.path.join(cgdms_dir, "cgdms_params_ep45.pt")
 
 n_bins_pot = 140
 n_bins_force = n_bins_pot - 2

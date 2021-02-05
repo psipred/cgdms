@@ -1,4 +1,4 @@
-include cgdms/cgdms_params_ep45.pt
-include protein_data/results/*
-include protein_data/train_val/*
-include datasets/*
+inlude cgdms/cgdms_params_ep45.pt
+inlude cgdms/protein_data/results/*
+inlude cgdms/protein_data/train_val/*
+inlude cgdms/datasets/*

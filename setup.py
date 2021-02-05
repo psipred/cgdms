@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="cgdms",
-    version="0.1",
+    version="0.1.1",
     author="Joe G Greener",
     author_email="j.greener@ucl.ac.uk",
     description="Differentiable molecular simulation of proteins with a coarse-grained potential",
