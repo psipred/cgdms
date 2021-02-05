@@ -27,7 +27,7 @@ The modes are described below but there are other options outlined in the help t
 ### Generating protein data files
 
 To simulate or score proteins you need to generate files of a certain format.
-If you want to use the proteins used in the paper, the data files are at...
+If you want to use the proteins used in the paper, the data files are [here](protein_data/results).
 Otherwise you will need to generate these files:
 
 ```bash
