@@ -14,7 +14,7 @@ from random import gauss, random, shuffle
 
 cgdms_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 dataset_dir = os.path.join(cgdms_dir, "datasets")
-coord_dir = os.path.join(cgdms_dir, "protein_data")
+train_val_dir = os.path.join(cgdms_dir, "protein_data", "train_val")
 trained_model_file = os.path.join(cgdms_dir, "cgdms", "cgdms_params_ep45.pt")
 
 n_bins_pot = 140
@@ -591,8 +591,8 @@ def train(model_filepath, device="cpu", verbosity=0):
         torch.zeros(len(dihedrals), n_aas * len(ss_types), n_bins_pot + 2, device=device)
     )
 
-    train_set = ProteinDataset(train_proteins, coord_dir, device=device)
-    val_set   = ProteinDataset(val_proteins  , coord_dir, device=device)
+    train_set = ProteinDataset(train_proteins, train_val_dir, device=device)
+    val_set   = ProteinDataset(val_proteins  , train_val_dir, device=device)
 
     optimizer = torch.optim.Adam(simulator.parameters(), lr=learning_rate)
 
