@@ -158,6 +158,8 @@ See `cgdms.interactions` for the interaction described by each potential, which 
 Running a simulation takes less than 1 GB of GPU memory for any number of steps.
 Training a model takes up to 32 GB of GPU memory once the number of steps is fully scaled up to 2,000.
 
+The lists of training and validation PDB chains are available [here](datasets) and the protein data files [here](protein_data/train_val).
+
 The code in this package is set up to run specific coarse-grained simulations of proteins.
 However, the package contains code that could be useful to others wishing to carry out general differentiable simulations with PyTorch.
 This includes integrators not used in the paper and not thoroughly tested (velocity-free Verlet, two Langevin implementations), the Andersen thermostat, RMSD with the Kabsch algorithm, and code to apply forces to atoms from bond angle and dihedral angle potentials.
