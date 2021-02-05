@@ -4,7 +4,7 @@ This repository contains the learned potential, simulation scripts and training 
 
 Greener JG and Jones DT, Differentiable molecular simulation can learn all the parameters in a coarse-grained force field for proteins, bioRxiv (2021) - link pending
 
-It can be used to simulate any protein and reproduce the results in the paper.
+It provides the `cgdms` Python package which can be used to simulate any protein and reproduce the results in the paper.
 
 ## Installation
 
@@ -26,8 +26,8 @@ The modes are described below but there are other options outlined in the help t
 
 ### Generating protein data files
 
-To simulate or score proteins you need to generate files of a certain format.
-If you want to use the proteins used in the paper, the data files are [here](protein_data/results).
+To simulate or calculate the energy of proteins you need to generate files of a certain format.
+If you want to use the proteins presented in the paper, the data files are [here](protein_data/results).
 Otherwise you will need to generate these files:
 
 ```bash
@@ -80,9 +80,9 @@ This can be `predss` (extended with predicted secondary structure), `native` (th
 It takes ~36 hours on a GPU to run a simulation of this length, or ~10 ms per time step.
 * `-t`, `-c`, `-st`, `-ts` can be used to change the thermostat temperature, thermostat coupling constant, starting temperature and integrator time step respectively.
 
-### Scoring a structure
+### Calculating the energy
 
-Score a protein structure in the learned potential:
+Calculate the energy of a protein structure in the learned potential:
 
 ```bash
 cgdms score -i 1CRN.txt
@@ -92,13 +92,13 @@ cgdms score -i 1CRN.txt
 ```
 
 * `-i` is a protein data file as described above.
-* `-m` gives an optional number of minimisation steps before returning the score, default `0`.
+* `-m` gives an optional number of minimisation steps before returning the energy, default `0`.
 
-Since scoring without minimisation steps is mostly setup, running on the CPU using `-d cpu` is often faster than running on the GPU (~5 s to ~3 s).
+Since calculating the energy without minimisation steps is mostly setup, running on the CPU using `-d cpu` is often faster than running on the GPU (~5 s to ~3 s).
 
 ### Threading sequences onto a structure
 
-Thread a set of sequences onto a structure and score them.
+Calculate the energy in the learned potential of a set of sequences threaded onto a structure.
 
 ```bash
 cgdms thread -i 1CRN.txt -s sequences.txt
@@ -113,7 +113,7 @@ cgdms thread -i 1CRN.txt -s sequences.txt
 * `-i` is a protein data file as described above.
 * `-s` is a file containing protein sequences, one per line, of the same length as the sequence in the protein data file (that sequence is ignored).
 Since lines in the sequence file starting with `>` are ignored, FASTA files can be used provided each sequence is on a single line.
-* `-m` gives an optional number of minimisation steps before returning the score, default `100`.
+* `-m` gives an optional number of minimisation steps before returning the energy, default `100`.
 
 ### Training the system
 
@@ -150,8 +150,8 @@ dict_keys(['distances', 'angles', 'dihedrals', 'optimizer'])
 
 * `params["distances"]` has shape `[28961, 140]` corresponding to the 28,960 distance potentials described in the paper and a flat potential used for same atom interactions.
 See `cgdms.interactions` for the interaction described by each potential, which has values corresponding to 140 distance bins.
-* `params["angles"]` has shape `[5, 20, 140]` corresponding to the 5 angles in `cgdms.angles`, the 20 amino acids in `cgdms.aas`, and 140 angle bins.
-* `params["dihedrals"]` has shape `[5, 60, 142]` corresponding to the 5 dihedrals in `cgdms.dihedrals`, 20 amino acids in each predicted secondary structure type (ala helix, ala sheet, ala coil, arg helix, etc.), and 140 angle bins with an extra 2 to wrap round and allow periodicity.
+* `params["angles"]` has shape `[5, 20, 140]` corresponding to the 5 bond angles in `cgdms.angles`, the 20 amino acids in `cgdms.aas`, and 140 angle bins.
+* `params["dihedrals"]` has shape `[5, 60, 142]` corresponding to the 5 dihedral angles in `cgdms.dihedrals`, the 20 amino acids from `cgdms.aas` in each predicted secondary structure type (ala helix, ala sheet, ala coil, arg helix, etc.), and 140 angle bins with an extra 2 to wrap round and allow periodicity.
 
 ## Notes
 

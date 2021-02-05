@@ -48,17 +48,17 @@ parser_simulate.add_argument("-d", "--device",
 parser_simulate.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=2,
     help="logging verbosity, default 2")
 
-parser_score = subparsers.add_parser("score",
+parser_energy = subparsers.add_parser("energy",
     description="Calculate the energy of a structure in the learned potential.",
     help="calculate the energy of a structure in the learned potential")
-parser_score.add_argument("-i", "--input", required=True, help="input protein data file")
-parser_score.add_argument("-m", "--minsteps", type=float, default=0.0,
+parser_energy.add_argument("-i", "--input", required=True, help="input protein data file")
+parser_energy.add_argument("-m", "--minsteps", type=float, default=0.0,
     help="number of minimisation steps to run, default 0")
-parser_score.add_argument("-p", "--parameters",
+parser_energy.add_argument("-p", "--parameters",
     help="parameter set to use, default is the trained model")
-parser_score.add_argument("-d", "--device",
+parser_energy.add_argument("-d", "--device",
     help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
-parser_score.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
+parser_energy.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
     help="logging verbosity, default 0")
 
 parser_thread = subparsers.add_parser("thread",
@@ -129,7 +129,7 @@ elif args.mode == "simulate":
                             thermostat_const=args.coupling, temperature=args.temperature,
                             sim_filepath=args.output, report_n=args.report,
                             verbosity=args.verbosity)
-elif args.mode == "score":
+elif args.mode == "energy":
     if args.parameters:
         params = torch.load(args.parameters, map_location=device)
     else:
