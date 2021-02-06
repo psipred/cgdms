@@ -161,6 +161,8 @@ Training a model takes up to 32 GB of GPU memory once the number of steps is ful
 
 The lists of training and validation PDB chains are available [here](cgdms/datasets) and the protein data files [here](cgdms/protein_data/train_val).
 
+See the autobuild [script](.github/workflows/CI.yml) and [logs](https://github.com/psipred/cgdms/actions) for automated commands to install and run the package in Ubuntu.
+
 The code in this package is set up to run specific coarse-grained simulations of proteins.
 However, the package contains code that could be useful to others wishing to carry out general differentiable simulations with PyTorch.
 This includes integrators not used in the paper and not thoroughly tested (velocity-free Verlet, two Langevin implementations), the Andersen thermostat, RMSD with the Kabsch algorithm, and code to apply forces to atoms from bond angle and dihedral angle potentials.
