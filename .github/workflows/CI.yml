@@ -28,6 +28,8 @@ jobs:
       run: pip install torch==1.7.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install other dependencies
       run: pip install numpy biopython PeptideBuilder
+    - name: Test install from repo
+      run: pip install .
     - name: Test help from repo
       run: python bin/cgdms -h
     - name: Test import from repo
@@ -40,6 +42,8 @@ jobs:
       run: python bin/cgdms energy -i cgdms/protein_data/example/1CRN.txt
     - name: Test thread from repo
       run: python bin/cgdms thread -i cgdms/protein_data/example/1CRN.txt -s cgdms/protein_data/example/seqs.txt -m 50
+    - name: Uninstall repo
+      run: pip uninstall cgdms
     - name: Test install from PyPI
       run: pip install cgdms
     - name: Test help from PyPI
