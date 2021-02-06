@@ -1,0 +1,55 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+    tags: '*'
+  schedule:
+    - cron: '00 04 * * 1' # 4am every Monday
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.9]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+      run: python -m pip install --upgrade pip
+    - name: Install PyTorch
+      run: pip install torch==1.7.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+    - name: Install other dependencies
+      run: pip install numpy biopython PeptideBuilder
+    - name: Test help from repo
+      run: python bin/cgdms -h
+    - name: Test import from repo
+      run: python bin/cgdms
+    - name: Test makeinput from repo
+      run: python bin/cgdms makeinput -i cgdms/protein_data/example/1CRN.pdb -s cgdms/protein_data/example/1CRN.ss2
+    - name: Test simulate from repo
+      run: python bin/cgdms simulate -i cgdms/protein_data/example/1CRN.txt -o traj.pdb -s predss -n 500 -r 100 -d cpu
+    - name: Test energy from repo
+      run: python bin/cgdms energy -i cgdms/protein_data/example/1CRN.txt
+    - name: Test thread from repo
+      run: python bin/cgdms thread -i cgdms/protein_data/example/1CRN.txt -s cgdms/protein_data/example/seqs.txt -m 50
+    - name: Test install from PyPI
+      run: pip install cgdms
+    - name: Test help from PyPI
+      run: cgdms -h
+    - name: Test import from PyPI
+      run: python -c "import cgdms"
+    - name: Test makeinput from PyPI
+      run: cgdms makeinput -i cgdms/protein_data/example/1CRN.pdb -s cgdms/protein_data/example/1CRN.ss2
+    - name: Test simulate from PyPI
+      run: cgdms simulate -i cgdms/protein_data/example/1CRN.txt -o traj.pdb -s predss -n 500 -r 100 -d cpu
+    - name: Test energy from PyPI
+      run: cgdms energy -i cgdms/protein_data/example/1CRN.txt
+    - name: Test thread from PyPI
+      run: cgdms thread -i cgdms/protein_data/example/1CRN.txt -s cgdms/protein_data/example/seqs.txt -m 50
