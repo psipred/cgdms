@@ -1,5 +1,7 @@
 # Differentiable molecular simulation of proteins with a coarse-grained potential
 
+[![Build status](https://github.com/psipred/cgdms/workflows/CI/badge.svg)](https://github.com/psipred/cgdms/actions)
+
 This repository contains the learned potential, simulation scripts and training code for the paper:
 
 Greener JG and Jones DT, Differentiable molecular simulation can learn all the parameters in a coarse-grained force field for proteins, bioRxiv (2021) - link pending
