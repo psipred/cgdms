@@ -49,6 +49,7 @@ This means a single protein chain with no missing residues or heavy atoms.
 Hetero atoms are ignored and all residues must be standard.
 The format is guessed from the file extension, default PDB.
 * `-s` is the PSIPRED secondary structure prediction ss2 output file.
+An example is given along with other example files [here](cgdms/protein_data/example).
 If this option is omitted then fully coiled is assumed, which is not recommended, though you could replace that with a secondary structure prediction of your choosing or the known secondary structure depending on your use case.
 
 If you are not interested in the RMSDs logged during the simulation and don't want to start simulation from the native structure, the coordinate lines (which contain coordinates for N/Cα/C/sidechain centroid) are not used.
