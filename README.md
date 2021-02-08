@@ -4,7 +4,7 @@
 
 This repository contains the learned potential, simulation scripts and training code for the paper:
 
-Greener JG and Jones DT, Differentiable molecular simulation can learn all the parameters in a coarse-grained force field for proteins, bioRxiv (2021) - link pending
+Greener JG and Jones DT, Differentiable molecular simulation can learn all the parameters in a coarse-grained force field for proteins, bioRxiv (2021) - [link](https://www.biorxiv.org/content/10.1101/2021.02.05.429941v1)
 
 It provides the `cgdms` Python package which can be used to simulate any protein and reproduce the results in the paper.
 
