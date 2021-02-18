@@ -160,6 +160,7 @@ See `cgdms.interactions` for the interaction described by each potential, which 
 
 Running a simulation takes less than 1 GB of GPU memory for any number of steps.
 Training a model takes up to 32 GB of GPU memory once the number of steps is fully scaled up to 2,000.
+See the discussion in the paper for ways of alleviating this.
 
 The lists of training and validation PDB chains are available [here](cgdms/datasets) and the protein data files [here](cgdms/protein_data/train_val).
 
