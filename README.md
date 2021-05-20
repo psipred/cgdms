@@ -12,7 +12,8 @@ It provides the `cgdms` Python package which can be used to simulate any protein
 
 1. Python 3.6 or later is required.
 The software is OS-independent.
-2. Install [PyTorch](https://pytorch.org) 1.6 or later as appropriate for your system.
+2. Install [PyTorch](https://pytorch.org) 1.6 as appropriate for your system.
+More recent PyTorch versions should work but this is not guaranteed.
 A GPU is not essential but is recommended as simulations are slower on the CPU.
 However running on CPU is about 3x slower than GPU depending on hardware, so it is still feasible.
 3. Run `pip install cgdms`, which will also install [NumPy](https://numpy.org), [Biopython](https://biopython.org) and [PeptideBuilder](https://github.com/clauswilke/PeptideBuilder) if they are not already present.
