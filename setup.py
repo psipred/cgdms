@@ -22,6 +22,6 @@ setuptools.setup(
     license="MIT",
     keywords="protein potential force-field coarse-grained automatic-differentiation",
     scripts=["bin/cgdms"],
-    install_requires=["numpy", "biopython", "PeptideBuilder", "colorant"],
+    install_requires=["numpy", "biopython", "PeptideBuilder", "colorama"],
     include_package_data=True,
 )

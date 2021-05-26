@@ -1,7 +1,7 @@
 # Differentiable molecular simulation of proteins with a coarse-grained potential
 # Author: Joe G Greener
 
-# biopython, PeptideBuilder and colorant are also imported in functions
+# biopython, PeptideBuilder and colorama are also imported in functions
 import numpy as np
 import torch
 from torch.utils.data import Dataset
