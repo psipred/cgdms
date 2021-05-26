@@ -78,6 +78,21 @@ parser_thread.add_argument("-d", "--device",
 parser_thread.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
     help="logging verbosity, default 0")
 
+parser_design = subparsers.add_parser("design",
+    description="Carry out fixed backbone protein design in the learned potential.",
+    help="carry out fixed backbone protein design in the learned potential")
+parser_design.add_argument("-i", "--input", required=True, help="input protein data file")
+parser_design.add_argument("-n", "--nmutations", type=float, default=2_000.0,
+    help="number of mutations to trial, default 2_000")
+parser_design.add_argument("-m", "--minsteps", type=float, default=100.0,
+    help="number of minimisation steps to run for each sequence, default 100")
+parser_design.add_argument("-p", "--parameters",
+    help="parameter set to use, default is the trained model")
+parser_design.add_argument("-d", "--device",
+    help="device to run on, default is \"cuda\" if it is available otherwise \"cpu\"")
+parser_design.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], default=0,
+    help="logging verbosity, default 0")
+
 parser_train = subparsers.add_parser("train",
     description="Train the model. This can take a couple of months... go and get a coffee?",
     help="train the model")
@@ -91,7 +106,7 @@ parser_train.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], defa
 args = parser.parse_args()
 
 for arg in ("nsteps", "temperature", "coupling", "starttemperature",
-            "timestep", "report", "minsteps"):
+            "timestep", "report", "minsteps", "nmutations"):
     if arg in args.__dict__ and args.__dict__[arg] < 0:
         raise argparse.ArgumentTypeError(f"{arg} is {args.__dict__[arg]} but must be non-negative")
 
@@ -161,6 +176,15 @@ elif args.mode == "thread":
                                         int(args.minsteps), integrator="min", energy=True,
                                         verbosity=args.verbosity)
                     print(li + 1, round(energy.item(), 3))
+elif args.mode == "design":
+    if args.parameters:
+        params = torch.load(args.parameters, map_location=device)
+    else:
+        params = torch.load(trained_model_file, map_location=device)
+    with torch.no_grad():
+        simulator = Simulator(params["distances"], params["angles"], params["dihedrals"])
+        fixed_backbone_design(args.input, simulator, int(args.nmutations), int(args.minsteps),
+                                device=device, verbosity=args.verbosity)
 elif args.mode == "train":
     train(args.output, device=device, verbosity=args.verbosity)
 else:

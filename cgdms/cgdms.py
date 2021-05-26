@@ -1,7 +1,7 @@
 # Differentiable molecular simulation of proteins with a coarse-grained potential
 # Author: Joe G Greener
 
-# biopython and PeptideBuilder are also imported in functions
+# biopython, PeptideBuilder and colorant are also imported in functions
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -579,6 +579,10 @@ def print_input_file(structure_file, ss2_file=None):
 
     for coord_n, coord_ca, coord_c, coord_cent in coords:
         print(f"{coord_str(coord_n)} {coord_str(coord_ca)} {coord_str(coord_c)} {coord_str(coord_cent)}")
+
+def fixed_backbone_design(input_file, simulator, nmutations, minsteps, device="cpu", verbosity=0):
+    from colorama import Fore, Style
+    print("Native energy...")
 
 def train(model_filepath, device="cpu", verbosity=0):
     max_n_steps = 2_000

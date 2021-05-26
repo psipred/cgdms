@@ -40,6 +40,8 @@ jobs:
       run: python bin/cgdms energy -i cgdms/protein_data/example/1CRN.txt
     - name: Test thread
       run: python bin/cgdms thread -i cgdms/protein_data/example/1CRN.txt -s cgdms/protein_data/example/seqs.txt -m 50
+    - name: Test design
+      run: python bin/cgdms design -i cgdms/protein_data/example/1CRN.txt -n 5 -m 50
   test_pypi:
     runs-on: ubuntu-latest
     strategy:
@@ -69,3 +71,5 @@ jobs:
       run: cgdms energy -i cgdms/protein_data/example/1CRN.txt
     - name: Test thread
       run: cgdms thread -i cgdms/protein_data/example/1CRN.txt -s cgdms/protein_data/example/seqs.txt -m 50
+    - name: Test design
+      run: cgdms design -i cgdms/protein_data/example/1CRN.txt -n 5 -m 50
