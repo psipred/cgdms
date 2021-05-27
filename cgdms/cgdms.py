@@ -10,7 +10,7 @@ from torch.nn.functional import normalize
 from itertools import count
 from math import pi
 import os
-from random import gauss, random, shuffle
+from random import choices, gauss, random, randrange, shuffle
 
 cgdms_dir = os.path.dirname(os.path.realpath(__file__))
 dataset_dir = os.path.join(cgdms_dir, "datasets")
@@ -64,6 +64,14 @@ centroid_dists = {
     "E": 3.3425, "Q": 3.3775, "G": 1.0325, "H": 3.1675, "I": 2.3975,
     "L": 2.6075, "K": 3.8325, "M": 3.1325, "F": 3.4125, "P": 1.9075,
     "S": 1.9425, "T": 1.9425, "W": 3.9025, "Y": 3.7975, "V": 1.9775,
+}
+
+# Approximate fraction of each amino acid in the PDB
+pdb_aa_frequencies = {
+    "A": 0.0728, "R": 0.0571, "N": 0.0409, "D": 0.0563, "C": 0.0237,
+    "E": 0.0835, "Q": 0.0461, "G": 0.0608, "H": 0.0214, "I": 0.0580,
+    "L": 0.0963, "K": 0.0718, "M": 0.0220, "F": 0.0337, "P": 0.0383,
+    "S": 0.0580, "T": 0.0500, "W": 0.0121, "Y": 0.0300, "V": 0.0672,
 }
 
 train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))]
@@ -580,9 +588,64 @@ def print_input_file(structure_file, ss2_file=None):
     for coord_n, coord_ca, coord_c, coord_cent in coords:
         print(f"{coord_str(coord_n)} {coord_str(coord_ca)} {coord_str(coord_c)} {coord_str(coord_cent)}")
 
-def fixed_backbone_design(input_file, simulator, nmutations, minsteps, device="cpu", verbosity=0):
-    from colorama import Fore, Style
-    print("Native energy...")
+def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=100,
+                            print_color=True, device="cpu", verbosity=0):
+    if print_color:
+        from colorama import Fore, Style
+        highlight_open = Fore.RED
+        highlight_close = Style.RESET_ALL
+    else:
+        highlight_open = ""
+        highlight_close = ""
+
+    coords, inters_flat, inters_ang, inters_dih, masses, native_seq = read_input_file(input_file, device=device)
+    energy_native_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
+                                    inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                                    masses.unsqueeze(0), native_seq, coords.unsqueeze(0),
+                                    n_min_steps, integrator="min", energy=True,
+                                    verbosity=verbosity).item()
+    print(f"Native score is {energy_native_min:6.1f}")
+
+    aa_weights = [pdb_aa_frequencies[aa] for aa in aas]
+    seq = "".join(choices(aas, weights=aa_weights, k=len(native_seq)))
+    coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file_threaded(
+                                                                    input_file, seq, device=device)
+    energy_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
+                            inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                            masses.unsqueeze(0), seq, coords.unsqueeze(0),
+                            n_min_steps, integrator="min", energy=True, verbosity=verbosity).item()
+
+    for mi in range(n_mutations):
+        mutate_i = randrange(len(seq))
+        rand_aa = choices(aas, weights=aa_weights, k=1)[0]
+        # Ensure we don't randomly choose the same residue
+        while rand_aa == seq[mutate_i]:
+            rand_aa = choices(aas, weights=aa_weights, k=1)[0]
+        new_seq = seq[:mutate_i] + rand_aa + seq[(mutate_i + 1):]
+        coords, inters_flat, inters_ang, inters_dih, masses, new_seq = read_input_file_threaded(
+                                                                input_file, new_seq, device=device)
+        new_energy_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
+                                    inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                                    masses.unsqueeze(0), new_seq, coords.unsqueeze(0),
+                                    n_min_steps, integrator="min", energy=True,
+                                    verbosity=verbosity).item()
+
+        if new_energy_min < energy_min:
+            decision = "accept_lower"
+        elif new_energy_min - energy_min < 10.0 and random() < -0.25 + 0.5 * (n_mutations - mi) / n_mutations:
+            decision = "accept_chance"
+        else:
+            decision = "reject"
+        print("{:5} / {:5} | {:6.1f} | {:13} | {:5.3f} | {}".format(mi + 1, n_mutations, new_energy_min,
+            decision, sum(1 for r1, r2 in zip(new_seq, native_seq) if r1 == r2) / len(native_seq),
+            "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(new_seq, native_seq)])))
+        if decision.startswith("accept"):
+            seq = new_seq
+            energy_min = new_energy_min
+
+    print("        final | {:6.1f} | {:13} | {:5.3f} | {}".format(energy_min,
+            "-", sum(1 for r1, r2 in zip(seq, native_seq) if r1 == r2) / len(native_seq),
+            "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(seq, native_seq)])))
 
 def train(model_filepath, device="cpu", verbosity=0):
     max_n_steps = 2_000

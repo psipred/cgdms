@@ -86,6 +86,8 @@ parser_design.add_argument("-n", "--nmutations", type=float, default=2_000.0,
     help="number of mutations to trial, default 2_000")
 parser_design.add_argument("-m", "--minsteps", type=float, default=100.0,
     help="number of minimisation steps to run for each sequence, default 100")
+parser_design.add_argument("-nc", "--nocolor", action="store_false",
+    help="do not print output in color")
 parser_design.add_argument("-p", "--parameters",
     help="parameter set to use, default is the trained model")
 parser_design.add_argument("-d", "--device",
@@ -183,7 +185,8 @@ elif args.mode == "design":
         params = torch.load(trained_model_file, map_location=device)
     with torch.no_grad():
         simulator = Simulator(params["distances"], params["angles"], params["dihedrals"])
-        fixed_backbone_design(args.input, simulator, int(args.nmutations), int(args.minsteps),
+        fixed_backbone_design(args.input, simulator, n_mutations=int(args.nmutations),
+                                n_min_steps=int(args.minsteps), print_color=args.nocolor,
                                 device=device, verbosity=args.verbosity)
 elif args.mode == "train":
     train(args.output, device=device, verbosity=args.verbosity)
