@@ -61,7 +61,7 @@ This would also apply to sequences where you don't know the native structure.
 
 ### Running a simulation
 
-Run a molecular dynamics simulation of a protein in the learned potential:
+Run a coarse-grained simulation of a protein in the learned potential:
 
 ```bash
 cgdms simulate -i 1CRN.txt -o traj.pdb -s predss -n 1.2e7
@@ -86,7 +86,7 @@ It takes ~36 hours on a GPU to run a simulation of this length, or ~10 ms per ti
 
 ### Calculating the energy
 
-Calculate the energy of a protein structure in the learned potential:
+Calculate the energy of a structure in the learned potential:
 
 ```bash
 cgdms energy -i 1CRN.txt
@@ -102,7 +102,7 @@ Since calculating the energy without minimisation steps is mostly setup, running
 
 ### Threading sequences onto a structure
 
-Calculate the energy in the learned potential of a set of sequences threaded onto a structure.
+Calculate the energy in the learned potential of a set of sequences threaded onto a structure:
 
 ```bash
 cgdms thread -i 1CRN.txt -s sequences.txt
@@ -115,13 +115,42 @@ cgdms thread -i 1CRN.txt -s sequences.txt
 ```
 
 * `-i` is a protein data file as described above.
-* `-s` is a file containing protein sequences, one per line, of the same length as the sequence in the protein data file (that sequence is ignored).
+The secondary structure prediction is used but the sequence is ignored.
+* `-s` is a file containing protein sequences, one per line, of the same length as the sequence in the protein data file.
 Since lines in the sequence file starting with `>` are ignored, FASTA files can be used provided each sequence is on a single line.
 * `-m` gives an optional number of minimisation steps before returning the energy, default `100`.
 
+### Fixed backbone protein design
+
+Carry out fixed backbone protein design in the learned potential:
+
+```bash
+cgdms design -i trp-cage.txt
+```
+```
+Native score is  -42.6
+    1 /  2000 |  -42.1 | reject        | 0.050 | TVAESGILSKHEIAFIGPVI
+    2 /  2000 |  -40.9 | accept_chance | 0.050 | TVAESGIHSKHKIAFIGPVI
+    3 /  2000 |  -42.2 | accept_lower  | 0.050 | TVAESGIHSKHKIAEIGPVI
+    4 /  2000 |  -41.7 | reject        | 0.050 | TVAESGIHSKHKIAEIGPKI
+...
+ 1998 /  2000 |  -65.5 | reject        | 0.500 | EAGALLLKLGGPSTGVPPVG
+ 1999 /  2000 |  -65.6 | reject        | 0.500 | EAEALLLKLGGPSAGVPPVG
+ 2000 /  2000 |  -63.0 | reject        | 0.500 | EAEALLLKFGGPSTGVPPVG
+        final |  -66.6 | -             | 0.500 | EAEALLLKLGGPSTGVPPVG
+```
+
+* `-i` is a protein data file as described above.
+The secondary structure prediction is used but the sequence is only used to report the native energy and calculate the native fraction.
+* `-n` is the number of mutations to trial during the design process, default `2_000`.
+* `-m` gives an optional number of minimisation steps before returning the energy, default `100`.
+* `-nc` means the native residues in the output are not printed in colour.
+
+The output columns are trial number, energy in the learned potential, whether the mutation was accepted, the native sequence fraction and the current sequence.
+
 ### Training the system
 
-Train the system.
+Train the system:
 
 ```bash
 cgdms train
@@ -164,6 +193,7 @@ Training a model takes up to 32 GB of GPU memory once the number of steps is ful
 See the discussion in the paper for ways of alleviating this.
 
 The lists of training and validation PDB chains are available [here](cgdms/datasets) and the protein data files [here](cgdms/protein_data/train_val).
+The representative structures from the folding simulations shown in Figure 4 are available [here](cgdms/protein_data/representative_strucs).
 
 See the autobuild [script](.github/workflows/CI.yml) and [logs](https://github.com/psipred/cgdms/actions) for automated commands to install and run the package in Ubuntu.
 
