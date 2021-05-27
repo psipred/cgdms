@@ -141,7 +141,7 @@ Native score is  -42.6
 ```
 
 * `-i` is a protein data file as described above.
-The secondary structure prediction is used but the sequence is only used to report the native energy and calculate the native fraction.
+The secondary structure prediction is used but the sequence is only used to report the native energy and calculate the native fraction (the starting sequence is random).
 * `-n` is the number of mutations to trial during the design process, default `2_000`.
 * `-m` gives an optional number of minimisation steps before returning the energy, default `100`.
 * `-nc` means the native residues in the output are not printed in colour.
@@ -193,7 +193,7 @@ Training a model takes up to 32 GB of GPU memory once the number of steps is ful
 See the discussion in the paper for ways of alleviating this.
 
 The lists of training and validation PDB chains are available [here](cgdms/datasets) and the protein data files [here](cgdms/protein_data/train_val).
-The representative structures from the folding simulations shown in Figure 4 are available [here](cgdms/protein_data/representative_strucs).
+The representative structures from the folding simulations shown in Figure 4 of the paper are available [here](cgdms/protein_data/representative_strucs).
 
 See the autobuild [script](.github/workflows/CI.yml) and [logs](https://github.com/psipred/cgdms/actions) for automated commands to install and run the package in Ubuntu.
 
