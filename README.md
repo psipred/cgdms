@@ -82,7 +82,7 @@ By default snapshots are taken and the energy printed every 10,000 steps but thi
 This can be `predss` (extended with predicted secondary structure), `native` (the conformation in the protein data file), `extended` (extended with small random perturbations to the angles), `random` (random in ϕ -180° -> -30°, ψ -180° -> 180°) or `helix` (ϕ -60°, ψ -60°).
 * `-n` is the number of simulation steps.
 It takes ~36 hours on a GPU to run a simulation of this length, or ~10 ms per time step.
-* `-t`, `-c`, `-st`, `-ts` can be used to change the thermostat temperature, thermostat coupling constant, starting temperature and integrator time step respectively.
+* `-t`, `-c`, `-st`, `-ts`, `-r` can be used to change the thermostat temperature, thermostat coupling constant, starting temperature, integrator time step and interval for logging respectively.
 
 ### Calculating the energy
 
