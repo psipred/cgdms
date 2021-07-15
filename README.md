@@ -16,7 +16,7 @@ The software is OS-independent.
 More recent PyTorch versions should work but this is not guaranteed.
 A GPU is not essential but is recommended as simulations are slower on the CPU.
 However running on CPU is about 3x slower than GPU depending on hardware, so it is still feasible.
-3. Run `pip install cgdms`, which will also install [NumPy](https://numpy.org), [Biopython](https://biopython.org) and [PeptideBuilder](https://github.com/clauswilke/PeptideBuilder) if they are not already present.
+3. Run `pip install cgdms`, which will also install [NumPy](https://numpy.org), [Biopython](https://biopython.org), [PeptideBuilder](https://github.com/clauswilke/PeptideBuilder) and [Colorama](https://github.com/tartley/colorama) if they are not already present.
 The package takes up about 75 MB of disk space.
 
 ## Usage

@@ -25,7 +25,7 @@ jobs:
     - name: Install PyTorch
       run: pip install torch==1.7.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install other dependencies
-      run: pip install numpy biopython PeptideBuilder
+      run: pip install numpy biopython PeptideBuilder colorama
     - name: Test install
       run: pip install .
     - name: Test help
@@ -56,7 +56,7 @@ jobs:
     - name: Install PyTorch
       run: pip install torch==1.7.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install other dependencies
-      run: pip install numpy biopython PeptideBuilder
+      run: pip install numpy biopython PeptideBuilder colorama
     - name: Test install
       run: pip install cgdms
     - name: Test help
