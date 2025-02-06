@@ -81,8 +81,8 @@ pdb_aa_frequencies = {
     "S": 0.0580, "T": 0.0500, "W": 0.0121, "Y": 0.0300, "V": 0.0672,
 }
 
-train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))][:16]
-val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))][:16]
+train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))]
+val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))]
 
 def get_bin_centres(min_dist, max_dist):
     gap_dist = (max_dist - min_dist) / n_bins_pot
@@ -656,6 +656,14 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
             "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(seq, native_seq)])))
 
 
+class NewOptimizerCallback(L.Callback):
+     def on_train_epoch_start(self, trainer, pl_module):
+        if trainer.current_epoch == 37:
+            rank_zero_info("restart Adam optimizer with halved lr...")
+            trainer.optimizers = [torch.optim.Adam(pl_module.simulator.parameters(), lr=pl_module.learning_rate / 2)]
+            #trainer.lr_schedulers = trainer.configure_schedulers([new_schedulers])
+            #trainer.optimizer_frequencies = [] # or optimizers frequencies if you have any
+
 
 class LitSimulator(L.LightningModule):
     def __init__(self, simulator:Simulator, lr, max_n_steps, min_n_steps=250, verbosity=0):
@@ -684,7 +692,7 @@ class LitSimulator(L.LightningModule):
         #train_rmsds.append(loss.item())
         #if passed:
         loss_log = torch.log(1.0 + loss)
-        self.log("train_log_rmsd", loss_log, batch_size=1)
+        self.log("train_log_rmsd", loss_log, batch_size=1, sync_dist=True)
         return loss_log
 
     def validation_step(self, batch, batch_idx):
@@ -696,7 +704,7 @@ class LitSimulator(L.LightningModule):
                             seq, native_coords, self.n_steps, 
                             verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
-        self.log("val_rmsd", loss, batch_size=1)
+        self.log("val_rmsd", loss, batch_size=1, sync_dist=True)
         # report("  Validation {:4} / {:4} - RMSD {:6.2f} over {:4} steps and {:3} residues".format(
                         # i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, 2)
         return loss
@@ -740,8 +748,11 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
     val_dataloader = DataLoader(val_set, num_workers=2)
     trainer = L.Trainer(accelerator=device,
                         devices=n_devices,
-                        max_epochs=1,  # testing only
-                        log_every_n_steps=1
+                        max_epochs=40,  # testing only
+                        log_every_n_steps=1,
+                        callbacks=[NewOptimizerCallback()],
+                        limit_train_batches=0.005,
+                        limit_val_batches=0.01
                         )
 
     rank_zero_info('Start training...')
