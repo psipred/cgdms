@@ -1,6 +1,12 @@
-# Differentiable molecular simulation of proteins with a coarse-grained potential
+# Differentiable molecular simulation of proteins 
+#     with a coarse-grained potential
 # Modified to use Lightning for training
 # Authors: Joe G Greener, Shaun M Kandathil
+
+# from itertools import count
+from math import pi
+import os
+from random import choices, gauss, random, randrange, shuffle
 
 # biopython, PeptideBuilder and colorama are also imported in functions
 import numpy as np
@@ -12,10 +18,6 @@ import lightning as L
 from lightning.pytorch.utilities.rank_zero import *
 #import pdb
 
-# from itertools import count
-from math import pi
-import os
-from random import choices, gauss, random, randrange, shuffle
 
 cgdms_dir = os.path.dirname(os.path.realpath(__file__))
 dataset_dir = os.path.join(cgdms_dir, "datasets")
@@ -676,11 +678,13 @@ class LitSimulator(L.LightningModule):
         native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
         coords = self.simulator(native_coords, inters_flat,
                             inters_ang, inters_dih, masses,
-                            seq, native_coords, self.n_steps, verbosity=self.verbosity)
+                            seq, native_coords, self.n_steps, 
+                            verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
         #train_rmsds.append(loss.item())
         #if passed:
         loss_log = torch.log(1.0 + loss)
+        self.log("train_log_rmsd", loss_log, batch_size=1)
         return loss_log
 
     def validation_step(self, batch, batch_idx):
@@ -689,23 +693,35 @@ class LitSimulator(L.LightningModule):
         native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
         coords = self.simulator(native_coords, inters_flat,
                             inters_ang, inters_dih, masses,
-                            seq, native_coords, self.n_steps, verbosity=self.verbosity)
+                            seq, native_coords, self.n_steps, 
+                            verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
-        #report("  Validation {:4} / {:4} - RMSD {:6.2f} over {:4} steps and {:3} residues".format(
-        #                i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, self.verbosity)
-        # return loss
+        self.log("val_rmsd", loss, batch_size=1)
+        # report("  Validation {:4} / {:4} - RMSD {:6.2f} over {:4} steps and {:3} residues".format(
+                        # i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, 2)
+        return loss
 
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.simulator.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.simulator.parameters(), 
+                                     lr=self.learning_rate)
         return optimizer
     
 
 def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
+    """Train with PyTorch Lightning
+
+    Args:
+        model_filepath (str): path to saved model parameters file
+        device (str, optional): Lightning Device to use. Defaults to 'auto'.
+        n_devices (int, optional): Number of devices to use. Defaults to 1.
+        verbosity (int, optional): Verbosity. Defaults to 0.
+    """
+    
     max_n_steps = 2_000
     learning_rate = 1e-4
     n_accumulate = 100 # TODO gradient accumulation needs manual optimizer handling
-    torch.set_float32_matmul_precision('high')
+    torch.set_float32_matmul_precision('medium')
     simulator = LitSimulator(
         Simulator(
             torch.zeros(len(interactions), n_bins_pot),
@@ -722,8 +738,8 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
 
     train_dataloader = DataLoader(train_set, num_workers=2)
     val_dataloader = DataLoader(val_set, num_workers=2)
-    trainer = L.Trainer(accelerator=device, 
-                        devices=n_devices, 
+    trainer = L.Trainer(accelerator=device,
+                        devices=n_devices,
                         max_epochs=1,  # testing only
                         log_every_n_steps=1
                         )
@@ -743,7 +759,7 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
     else:
         optimizer_state = opts.optimizer.state_dict()
 
-    if L.Fabric.global_rank == 0:
+    if trainer.global_rank == 0:
         torch.save({"distances": simulator.simulator.ff_distances.data,
                     "angles"   : simulator.simulator.ff_angles.data,
                     "dihedrals": simulator.simulator.ff_dihedrals.data,
