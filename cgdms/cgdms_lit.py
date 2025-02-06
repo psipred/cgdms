@@ -1,5 +1,6 @@
 # Differentiable molecular simulation of proteins with a coarse-grained potential
-# Author: Joe G Greener
+# Modified to use Lightning for training
+# Authors: Joe G Greener, Shaun M Kandathil
 
 # biopython, PeptideBuilder and colorama are also imported in functions
 import numpy as np
@@ -8,9 +9,10 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.functional import normalize
 
 import lightning as L
-import pdb
+from lightning.pytorch.utilities.rank_zero import *
+#import pdb
 
-from itertools import count
+# from itertools import count
 from math import pi
 import os
 from random import choices, gauss, random, randrange, shuffle
@@ -77,8 +79,8 @@ pdb_aa_frequencies = {
     "S": 0.0580, "T": 0.0500, "W": 0.0121, "Y": 0.0300, "V": 0.0672,
 }
 
-train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))][:12]
-val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))]
+train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))][:16]
+val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))][:16]
 
 def get_bin_centres(min_dist, max_dist):
     gap_dist = (max_dist - min_dist) / n_bins_pot
@@ -251,8 +253,6 @@ class Simulator(torch.nn.Module):
         batch_size, n_atoms = masses.size(0), masses.size(1)
         n_res = n_atoms // len(atoms)
         dist_bin_centres_tensor = torch.tensor(dist_bin_centres).to(coords)
-
-
 
         pair_centres_flat = dist_bin_centres_tensor.index_select(0, inters_flat[0][0]).unsqueeze(0).expand(batch_size, -1, -1).to(coords)
         pair_pots_flat = self.ff_distances.index_select(0, inters_flat[0]).unsqueeze(0).expand(batch_size, -1, -1).to(coords)
@@ -656,42 +656,55 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
 
 
 class LitSimulator(L.LightningModule):
-    def __init__(self, simulator, lr, verbosity):
+    def __init__(self, simulator:Simulator, lr, max_n_steps, min_n_steps=250, verbosity=0):
         super().__init__()
         self.simulator = simulator
         self.learning_rate = lr
         self.verbosity = verbosity
+        self.max_n_steps = max_n_steps
+        self.min_n_steps = min_n_steps
+        self.n_steps = 0
+
+    def set_n_steps(self):
+        ei = self.current_epoch # starts from zero, as in reference version
+        self.n_steps = min(self.min_n_steps * ((ei // 5) + 1), self.max_n_steps) # Scale up n_steps over epochs            
 
     def training_step(self,batch, batch_idx):
-        n_steps = 250 # TODO min(250 * ((ei // 5) + 1), max_n_steps) # Scale up n_steps over epochs
+        self.set_n_steps()
         self.simulator.train()
-        #optimizer.zero_grad()
-        #for i, ni in enumerate(train_inds):# set breakpoint
 
         native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
         coords = self.simulator(native_coords, inters_flat,
                             inters_ang, inters_dih, masses,
-                            seq, native_coords, n_steps, verbosity=self.verbosity)
-        #pdb.set_trace()
+                            seq, native_coords, self.n_steps, verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
         #train_rmsds.append(loss.item())
         #if passed:
         loss_log = torch.log(1.0 + loss)
         return loss_log
 
-    def validation_step(self, *args, **kwargs):
-        return super().validation_step(*args, **kwargs)
-    
+    def validation_step(self, batch, batch_idx):
+        self.set_n_steps()
+        # return super().validation_step(*args, **kwargs)
+        native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
+        coords = self.simulator(native_coords, inters_flat,
+                            inters_ang, inters_dih, masses,
+                            seq, native_coords, self.n_steps, verbosity=self.verbosity)
+        loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
+        #report("  Validation {:4} / {:4} - RMSD {:6.2f} over {:4} steps and {:3} residues".format(
+        #                i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, self.verbosity)
+        # return loss
 
+    
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.simulator.parameters(), lr=self.learning_rate)
         return optimizer
     
+
 def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
-    print("in train2...")
     max_n_steps = 2_000
     learning_rate = 1e-4
-    n_accumulate = 100
+    n_accumulate = 100 # TODO gradient accumulation needs manual optimizer handling
     torch.set_float32_matmul_precision('high')
     simulator = LitSimulator(
         Simulator(
@@ -700,31 +713,43 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
             torch.zeros(len(dihedrals), n_aas * len(ss_types), n_bins_pot + 2)
         ),
         lr=learning_rate,
-        verbosity=verbosity
+        verbosity=verbosity,
+        max_n_steps=max_n_steps
     )
 
     train_set = ProteinDataset(train_proteins, train_val_dir)
     val_set   = ProteinDataset(val_proteins  , train_val_dir)
 
-    train_dataloader = DataLoader(train_set)
-    val_dataloader = DataLoader(val_set)
-    trainer = L.Trainer(accelerator=device, devices=n_devices, max_epochs=1) # testing only
+    train_dataloader = DataLoader(train_set, num_workers=2)
+    val_dataloader = DataLoader(val_set, num_workers=2)
+    trainer = L.Trainer(accelerator=device, 
+                        devices=n_devices, 
+                        max_epochs=1,  # testing only
+                        log_every_n_steps=1
+                        )
 
-    report("Starting training", 0, verbosity)
-    trainer.fit(model=simulator, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader, #ckpt_path=model_filepath
+    rank_zero_info('Start training...')
+    trainer.fit(model=simulator, 
+                train_dataloaders=train_dataloader, 
+                val_dataloaders=val_dataloader, 
+                #ckpt_path=model_filepath
                 )
     
+    rank_zero_info("Training complete; save params and optimizer state...")
+
     opts = simulator.optimizers()
     if isinstance(opts, list):
         optimizer_state = [ o.optimizer.state_dict() for o in opts ]
     else:
         optimizer_state = opts.optimizer.state_dict()
 
-    torch.save({"distances": simulator.simulator.ff_distances.data,
+    if L.Fabric.global_rank == 0:
+        torch.save({"distances": simulator.simulator.ff_distances.data,
                     "angles"   : simulator.simulator.ff_angles.data,
                     "dihedrals": simulator.simulator.ff_dihedrals.data,
                     "optimizer": optimizer_state},
-                    model_filepath)
-    
+                    model_filepath
+                    )
+    rank_zero_info("Done.")
 if __name__ == "__main__":
-    train2('test_lit.pt', device="cuda", n_devices=4, verbosity=2)
+    train2(model_filepath='test_lit.pt', device="cuda", n_devices=-1, verbosity=0)
