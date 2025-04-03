@@ -1,4 +1,4 @@
-# Differentiable molecular simulation of proteins 
+# Differentiable molecular simulation of proteins
 #     with a coarse-grained potential
 # Modified to use Lightning for training
 # Authors: Joe G Greener, Shaun M Kandathil
@@ -6,7 +6,7 @@
 # from itertools import count
 from math import pi
 import os
-from random import choices, gauss, random, randrange, shuffle
+from random import choices, gauss, random, randrange  # , shuffle
 
 # biopython, PeptideBuilder and colorama are also imported in functions
 import numpy as np
@@ -15,7 +15,8 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.functional import normalize
 
 import lightning as L
-from lightning.pytorch.utilities.rank_zero import *
+from lightning.pytorch.utilities.rank_zero import rank_zero_info
+from lightning.pytorch.profilers import SimpleProfiler  # , AdvancedProfiler
 #import pdb
 
 
@@ -84,10 +85,12 @@ pdb_aa_frequencies = {
 train_proteins = [l.rstrip() for l in open(os.path.join(dataset_dir, "train.txt"))]
 val_proteins   = [l.rstrip() for l in open(os.path.join(dataset_dir, "val.txt"  ))]
 
+
 def get_bin_centres(min_dist, max_dist):
     gap_dist = (max_dist - min_dist) / n_bins_pot
     bcs_pot = [min_dist + i * gap_dist + 0.5 * gap_dist for i in range(n_bins_pot)]
     return bcs_pot[1:-1]
+
 
 interactions = []
 dist_bin_centres = []
@@ -120,10 +123,12 @@ gap_dih = (2 * pi) / n_bins_pot
 # Two invisible bins on the end imitate periodicity
 dih_bin_centres = [-pi + i * gap_dih - 0.5 * gap_dih for i in range(n_bins_pot + 2)][1:-1]
 
+
 # Report a message if it exceeds the verbosity level
 def report(msg, msg_verbosity=0, verbosity=2):
     if msg_verbosity <= verbosity:
         print(msg)
+
 
 # Read an input data file
 # The protein sequence is read from the file but will overrule the file if provided
@@ -140,7 +145,7 @@ def read_input_file(fp, seq=""):
             seq_info.append((i, atom))
     n_atoms = len(seq_info)
     native_coords = torch.tensor(np.loadtxt(fp, skiprows=2), dtype=torch.float,
-                                    ).view(n_atoms, 3)
+                                 ).view(n_atoms, 3)
 
     inters = torch.ones(n_atoms, n_atoms, dtype=torch.long) * -1
     for i in range(n_atoms):
@@ -189,9 +194,10 @@ def read_input_file(fp, seq=""):
 
     # Different dihedral potentials for each residue and predicted secondary structure type
     inters_dih = torch.tensor([aas.index(r) * len(ss_types) + ss_types.index(s) for r, s in zip(seq, ss_pred)],
-                                dtype=torch.long)
+                              dtype=torch.long)
 
     return native_coords, inters_flat, inters_ang, inters_dih, masses, seq
+
 
 # Read an input data file and thread a new sequence onto it
 def read_input_file_threaded(fp, seq):
@@ -206,13 +212,13 @@ def read_input_file_threaded(fp, seq):
 
     return coords, inters_flat, inters_ang, inters_dih, masses, seq
 
+
 # Read a dataset of input files
 class ProteinDataset(Dataset):
     def __init__(self, pdbids, coord_dir):
         self.pdbids = pdbids
         self.coord_dir = coord_dir
         self.set_size = len(pdbids)
-        
 
     def __len__(self):
         return self.set_size
@@ -220,6 +226,7 @@ class ProteinDataset(Dataset):
     def __getitem__(self, index):
         fp = os.path.join(self.coord_dir, self.pdbids[index] + ".txt")
         return read_input_file(fp)
+
 
 # Differentiable molecular simulation of proteins with a coarse-grained potential
 # @torch.compile
@@ -229,7 +236,7 @@ class Simulator(torch.nn.Module):
         self.ff_distances = torch.nn.Parameter(ff_distances)
         self.ff_angles    = torch.nn.Parameter(ff_angles)
         self.ff_dihedrals = torch.nn.Parameter(ff_dihedrals)
-    
+
     def forward(self,
                 coords,
                 inters_flat,
@@ -248,7 +255,7 @@ class Simulator(torch.nn.Module):
                 energy=False, # Return the energy at the end of the simulation
                 report_n=10_000, # Print and write PDB every report_n steps
                 verbosity=2, # 0 for epoch info, 1 for protein info, 2 for simulation step info
-        ):
+                ):
 
         assert integrator in ("vel", "no_vel", "min", "langevin", "langevin_simple"), f"Invalid integrator {integrator}"
 
@@ -478,6 +485,7 @@ class Simulator(torch.nn.Module):
 
         return coords
 
+
 # RMSD between two sets of coordinates with shape (n_atoms, 3) using the Kabsch algorithm
 # Returns the RMSD and whether convergence was reached
 def rmsd(c1, c2):
@@ -501,6 +509,7 @@ def rmsd(c1, c2):
     diffs = rot_P - Q
     msd = (diffs ** 2).sum() / diffs.size(1)
     return msd.sqrt(), True
+
 
 # Generate starting coordinates
 # conformation is extended/predss/random/helix
@@ -542,8 +551,9 @@ def starting_coords(seq, conformation="extended", input_file=""):
                     dtype=torch.float).mean(dim=0)
             else:
                 coords[len(atoms) * i + ai] = torch.tensor(structure[0]["A"][i + 1][atom].coord,
-                                                            dtype=torch.float)
+                                                           dtype=torch.float)
     return coords
+
 
 # Print a protein data file from a PDB/mmCIF file and an optional PSIPRED ss2 file
 def print_input_file(structure_file, ss2_file=None):
@@ -596,8 +606,9 @@ def print_input_file(structure_file, ss2_file=None):
     for coord_n, coord_ca, coord_c, coord_cent in coords:
         print(f"{coord_str(coord_n)} {coord_str(coord_ca)} {coord_str(coord_c)} {coord_str(coord_cent)}")
 
+
 def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=100,
-                            print_color=True, verbosity=0):
+                          print_color=True, verbosity=0):
     if print_color:
         from colorama import Fore, Style
         highlight_open = Fore.RED
@@ -608,10 +619,10 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
 
     coords, inters_flat, inters_ang, inters_dih, masses, native_seq = read_input_file(input_file)
     energy_native_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
-                                    inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
-                                    masses.unsqueeze(0), native_seq, coords.unsqueeze(0),
-                                    n_min_steps, integrator="min", energy=True,
-                                    verbosity=verbosity).item()
+                                  inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                                  masses.unsqueeze(0), native_seq, coords.unsqueeze(0),
+                                  n_min_steps, integrator="min", energy=True,
+                                  verbosity=verbosity).item()
     print(f"Native score is {energy_native_min:6.1f}")
 
     aa_weights = [pdb_aa_frequencies[aa] for aa in aas]
@@ -619,9 +630,9 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
     coords, inters_flat, inters_ang, inters_dih, masses, seq = read_input_file_threaded(
                                                                     input_file, seq)
     energy_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
-                            inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
-                            masses.unsqueeze(0), seq, coords.unsqueeze(0),
-                            n_min_steps, integrator="min", energy=True, verbosity=verbosity).item()
+                           inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                           masses.unsqueeze(0), seq, coords.unsqueeze(0),
+                           n_min_steps, integrator="min", energy=True, verbosity=verbosity).item()
 
     for mi in range(n_mutations):
         mutate_i = randrange(len(seq))
@@ -633,10 +644,10 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
         coords, inters_flat, inters_ang, inters_dih, masses, new_seq = read_input_file_threaded(
                                                                 input_file, new_seq)
         new_energy_min = simulator(coords.unsqueeze(0), inters_flat.unsqueeze(0),
-                                    inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
-                                    masses.unsqueeze(0), new_seq, coords.unsqueeze(0),
-                                    n_min_steps, integrator="min", energy=True,
-                                    verbosity=verbosity).item()
+                                   inters_ang.unsqueeze(0), inters_dih.unsqueeze(0),
+                                   masses.unsqueeze(0), new_seq, coords.unsqueeze(0),
+                                   n_min_steps, integrator="min", energy=True,
+                                   verbosity=verbosity).item()
 
         if new_energy_min < energy_min:
             decision = "accept_lower"
@@ -645,20 +656,23 @@ def fixed_backbone_design(input_file, simulator, n_mutations=2_000, n_min_steps=
         else:
             decision = "reject"
         print("{:5} / {:5} | {:6.1f} | {:13} | {:5.3f} | {}".format(mi + 1, n_mutations, new_energy_min,
-            decision, sum(1 for r1, r2 in zip(new_seq, native_seq) if r1 == r2) / len(native_seq),
-            "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(new_seq, native_seq)])))
+              decision, sum(1 for r1, r2 in zip(new_seq, native_seq) if r1 == r2) / len(native_seq),
+              "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(new_seq, native_seq)])))
         if decision.startswith("accept"):
             seq = new_seq
             energy_min = new_energy_min
 
     print("        final | {:6.1f} | {:13} | {:5.3f} | {}".format(energy_min,
-            "-", sum(1 for r1, r2 in zip(seq, native_seq) if r1 == r2) / len(native_seq),
-            "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(seq, native_seq)])))
+          "-", sum(1 for r1, r2 in zip(seq, native_seq) if r1 == r2) / len(native_seq),
+          "".join([f"{highlight_open}{r1}{highlight_close}" if r1 == r2 else r1 for r1, r2 in zip(seq, native_seq)])))
 
 
-class NewOptimizerCallback(L.Callback):
-     def on_train_epoch_start(self, trainer, pl_module):
-        if trainer.current_epoch == 37:
+class HalveOptimizerLRCallback(L.Callback):
+    def __init__(self, at_epoch):
+        self.at_epoch = at_epoch
+
+    def on_train_epoch_start(self, trainer, pl_module):
+        if trainer.current_epoch == self.at_epoch:
             rank_zero_info("restart Adam optimizer with halved lr...")
             trainer.optimizers = [torch.optim.Adam(pl_module.simulator.parameters(), lr=pl_module.learning_rate / 2)]
             #trainer.lr_schedulers = trainer.configure_schedulers([new_schedulers])
@@ -673,11 +687,11 @@ class LitSimulator(L.LightningModule):
         self.verbosity = verbosity
         self.max_n_steps = max_n_steps
         self.min_n_steps = min_n_steps
-        self.n_steps = 0
+        self.n_steps = 0  # modified by set_n_steps as the training proceeds
 
     def set_n_steps(self):
         ei = self.current_epoch # starts from zero, as in reference version
-        self.n_steps = min(self.min_n_steps * ((ei // 5) + 1), self.max_n_steps) # Scale up n_steps over epochs            
+        self.n_steps = min(self.min_n_steps * ((ei // 5) + 1), self.max_n_steps) # Scale up n_steps over epochs
 
     def training_step(self,batch, batch_idx):
         self.set_n_steps()
@@ -685,9 +699,9 @@ class LitSimulator(L.LightningModule):
 
         native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
         coords = self.simulator(native_coords, inters_flat,
-                            inters_ang, inters_dih, masses,
-                            seq, native_coords, self.n_steps, 
-                            verbosity=self.verbosity)
+                                inters_ang, inters_dih, masses,
+                                seq, native_coords, self.n_steps,
+                                verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
         #train_rmsds.append(loss.item())
         #if passed:
@@ -700,21 +714,20 @@ class LitSimulator(L.LightningModule):
         # return super().validation_step(*args, **kwargs)
         native_coords, inters_flat, inters_ang, inters_dih, masses, seq = batch
         coords = self.simulator(native_coords, inters_flat,
-                            inters_ang, inters_dih, masses,
-                            seq, native_coords, self.n_steps, 
-                            verbosity=self.verbosity)
+                                inters_ang, inters_dih, masses,
+                                seq, native_coords, self.n_steps,
+                                verbosity=self.verbosity)
         loss, passed = rmsd(coords.squeeze(0), native_coords.squeeze(0))
         self.log("val_rmsd", loss, batch_size=1, sync_dist=True)
         # report("  Validation {:4} / {:4} - RMSD {:6.2f} over {:4} steps and {:3} residues".format(
-                        # i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, 2)
+        # i + 1, len(val_proteins), loss.item(), self.n_steps, len(seq)), 1, 2)
         return loss
 
-    
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.simulator.parameters(), 
+        optimizer = torch.optim.Adam(self.simulator.parameters(),
                                      lr=self.learning_rate)
         return optimizer
-    
+
 
 def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
     """Train with PyTorch Lightning
@@ -725,10 +738,10 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
         n_devices (int, optional): Number of devices to use. Defaults to 1.
         verbosity (int, optional): Verbosity. Defaults to 0.
     """
-    
+
     max_n_steps = 2_000
     learning_rate = 1e-4
-    n_accumulate = 100 # TODO gradient accumulation needs manual optimizer handling
+    n_accumulate = 100
     torch.set_float32_matmul_precision('medium')
     simulator = LitSimulator(
         Simulator(
@@ -746,22 +759,27 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
 
     train_dataloader = DataLoader(train_set, num_workers=2)
     val_dataloader = DataLoader(val_set, num_workers=2)
+
+    profiler = SimpleProfiler(dirpath=".", filename="perf_logs")
+
     trainer = L.Trainer(accelerator=device,
                         devices=n_devices,
-                        max_epochs=40,  # testing only
+                        max_epochs=20,  # testing only; -1 for infinite epochs
                         log_every_n_steps=1,
-                        callbacks=[NewOptimizerCallback()],
+                        callbacks=[HalveOptimizerLRCallback()],
                         limit_train_batches=0.005,
-                        limit_val_batches=0.01
+                        limit_val_batches=0.01,
+                        profiler=profiler,
+                        accumulate_grad_batches=n_accumulate
                         )
 
     rank_zero_info('Start training...')
-    trainer.fit(model=simulator, 
-                train_dataloaders=train_dataloader, 
-                val_dataloaders=val_dataloader, 
+    trainer.fit(model=simulator,
+                train_dataloaders=train_dataloader,
+                val_dataloaders=val_dataloader,
                 #ckpt_path=model_filepath
                 )
-    
+
     rank_zero_info("Training complete; save params and optimizer state...")
 
     opts = simulator.optimizers()
@@ -775,8 +793,10 @@ def train2(model_filepath, device='auto', n_devices=1, verbosity=0):
                     "angles"   : simulator.simulator.ff_angles.data,
                     "dihedrals": simulator.simulator.ff_dihedrals.data,
                     "optimizer": optimizer_state},
-                    model_filepath
-                    )
+                   model_filepath
+                   )
     rank_zero_info("Done.")
+
+
 if __name__ == "__main__":
     train2(model_filepath='test_lit.pt', device="cuda", n_devices=-1, verbosity=0)
